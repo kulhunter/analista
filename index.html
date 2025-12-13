@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auto-Dashboard CSV - 2WIN</title>
+    <title>Analista Automático Universal - Solucionador.cl</title>
     
     <!-- 1. Estilos: Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -21,16 +21,28 @@
     <!-- 5. Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Estilos personalizados -->
+    <!-- 6. Librerías de Procesamiento de Archivos -->
+    <!-- SheetJS para Excel/CSV -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <!-- PDF.js para lectura de PDFs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; }
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #f8fafc; }
+        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.5); }
+        .fade-in-up { animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(20px); }
+        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+        /* Animación escalonada para las tarjetas */
+        .delay-100 { animation-delay: 100ms; }
+        .delay-200 { animation-delay: 200ms; }
+        .delay-300 { animation-delay: 300ms; }
+        
+        .icon-box { display: grid; place-items: center; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        .icon-svg { width: 100%; height: 100%; display: block; }
-        .fade-in { animation: fadeIn 0.5s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -38,464 +50,473 @@
 
     <script type="text/babel">
         const { useState, useMemo, useEffect } = React;
-        const Recharts = window.Recharts;
         const { 
             BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
-            ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area
-        } = Recharts;
+            ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area, ComposedChart 
+        } = window.Recharts;
+
+        // --- COLORES INTELIGENTES ---
+        const COLORS = ['#2563eb', '#059669', '#d97706', '#dc2626', '#7c3aed', '#db2777', '#0891b2', '#4f46e5'];
 
         // --- ICONOS ---
-        const IconUpload = () => <svg xmlns="http://www.w3.org/2000/svg" className="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
-        const IconSettings = () => <svg xmlns="http://www.w3.org/2000/svg" className="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
-        const IconChart = () => <svg xmlns="http://www.w3.org/2000/svg" className="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>;
-        const IconHash = () => <svg xmlns="http://www.w3.org/2000/svg" className="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>;
-        const IconTag = () => <svg xmlns="http://www.w3.org/2000/svg" className="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>;
-        const IconRefresh = () => <svg xmlns="http://www.w3.org/2000/svg" className="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>;
-
-        const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6'];
-
-        // --- UTILS DE PARSEO GENÉRICO ---
-        
-        // Intenta adivinar el delimitador (, ; \t |)
-        const detectDelimiter = (text) => {
-            const firstLine = text.split('\n')[0];
-            const delimiters = [',', ';', '\t', '|'];
-            let bestDelimiter = ',';
-            let maxCount = 0;
-            delimiters.forEach(d => {
-                const count = firstLine.split(d).length;
-                if (count > maxCount) {
-                    maxCount = count;
-                    bestDelimiter = d;
-                }
-            });
-            return bestDelimiter;
+        const Icons = {
+            CloudUpload: () => <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>,
+            Refresh: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>,
+            Magic: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>,
+            ChartBar: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
+            Currency: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+            File: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
         };
 
-        // Limpia valores de moneda/número sucios (ej: "$ 1.200,50")
-        const cleanNumber = (val) => {
-            if (typeof val === 'number') return val;
-            if (!val) return 0;
-            // Eliminar simbolos de moneda y espacios
-            let clean = val.replace(/[$\s€£]/g, '');
-            // Detectar formato europeo (1.000,00) vs americano (1,000.00)
-            if (clean.includes(',') && clean.includes('.')) {
-                if (clean.lastIndexOf(',') > clean.lastIndexOf('.')) {
-                     // Formato 1.000,00 -> Eliminar puntos, reemplazar coma por punto
-                     clean = clean.replace(/\./g, '').replace(',', '.');
-                } else {
-                     // Formato 1,000.00 -> Eliminar comas
-                     clean = clean.replace(/,/g, '');
-                }
-            } else if (clean.includes(',')) {
-                // Asumir coma es decimal si no hay puntos
-                clean = clean.replace(',', '.');
-            }
-            return parseFloat(clean) || 0;
-        };
-
-        // Analiza columnas para clasificar tipos (Numérico, Fecha, String)
-        const analyzeColumns = (data, headers) => {
-            const types = {};
-            const sampleSize = Math.min(data.length, 50); // Muestrear primeras 50 filas
-
-            headers.forEach(header => {
-                let numberCount = 0;
-                let dateCount = 0;
-                let validCount = 0;
-
-                for (let i = 0; i < sampleSize; i++) {
-                    const val = data[i][header];
-                    if (val === undefined || val === '' || val === null) continue;
-                    validCount++;
-
-                    // Check Number
-                    if (!isNaN(cleanNumber(val)) && /[0-9]/.test(val)) numberCount++;
-                    
-                    // Check Date (simple check)
-                    const d = new Date(val);
-                    if (!isNaN(d.getTime()) && val.length > 5 && (val.includes('/') || val.includes('-'))) dateCount++;
-                }
-
-                // Decidir tipo
-                if (validCount > 0) {
-                    if (dateCount > validCount * 0.6) types[header] = 'date';
-                    else if (numberCount > validCount * 0.8) types[header] = 'number';
-                    else types[header] = 'string';
-                } else {
-                    types[header] = 'string';
-                }
-            });
-            return types;
-        };
-
-        // --- COMPONENTE PRINCIPAL ---
-        function App() {
-            const [rawData, setRawData] = useState([]);
-            const [headers, setHeaders] = useState([]);
-            const [colTypes, setColTypes] = useState({});
-            const [fileName, setFileName] = useState(null);
-            
-            // Configuración del Dashboard (Selección de usuario)
-            const [config, setConfig] = useState({
-                numericCol: '',   // Para sumar (Y Axis)
-                categoryCol: '',  // Para agrupar (X Axis / Pie)
-                dateCol: '',      // Para línea de tiempo
-                secondNumericCol: '' // Para comparar
-            });
-
-            // Procesar archivo
-            const handleFileUpload = (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                setFileName(file.name);
-                const reader = new FileReader();
-                reader.onload = (evt) => processData(evt.target.result);
-                reader.readAsText(file);
-            };
-
-            const processData = (text) => {
-                try {
-                    const delimiter = detectDelimiter(text);
-                    const lines = text.split(/\r?\n/).filter(l => l.trim());
-                    
-                    // Detectar header (asumimos primera línea válida)
-                    const headerRow = lines[0].split(delimiter).map(h => h.replace(/^"|"$/g, '').trim());
-                    
-                    const data = [];
-                    for(let i=1; i<lines.length; i++) {
-                        // Regex compleja para manejar comas dentro de comillas si el delimitador es coma
-                        let row = [];
-                        if (delimiter === ',') {
-                             row = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
-                             // Fallback simple si el regex falla o es tab
-                             if(row.length === 0) row = lines[i].split(delimiter); 
-                        } else {
-                             row = lines[i].split(delimiter);
-                        }
-                        
-                        // Mapear a objeto
-                        const obj = {};
-                        headerRow.forEach((h, index) => {
-                            let val = row[index] ? row[index].replace(/^"|"$/g, '').trim() : '';
-                            obj[h] = val;
-                        });
-                        data.push(obj);
-                    }
-
-                    // Analizar Tipos
-                    const types = analyzeColumns(data, headerRow);
-
-                    // Adivinar configuración inicial por defecto
-                    const numericCols = headerRow.filter(h => types[h] === 'number');
-                    const dateCols = headerRow.filter(h => types[h] === 'date');
-                    const stringCols = headerRow.filter(h => types[h] === 'string');
-
-                    // Heurística simple para elegir columnas "interesantes"
-                    const initialConfig = {
-                        numericCol: numericCols.find(h => h.toLowerCase().includes('total') || h.toLowerCase().includes('amount') || h.toLowerCase().includes('precio')) || numericCols[0] || '',
-                        categoryCol: stringCols.find(h => h.toLowerCase().includes('camp') || h.toLowerCase().includes('prod') || h.toLowerCase().includes('name')) || stringCols[0] || '',
-                        dateCol: dateCols[0] || '',
-                        secondNumericCol: numericCols[1] || ''
-                    };
-
-                    setHeaders(headerRow);
-                    setColTypes(types);
-                    setRawData(data);
-                    setConfig(initialConfig);
-
-                } catch (err) {
-                    console.error(err);
-                    alert("Error procesando CSV. Revisa el formato.");
-                }
-            };
-
-            // --- CÁLCULOS DE KPI Y GRÁFICOS ---
-            const processedData = useMemo(() => {
-                if (rawData.length === 0) return null;
-
-                // 1. KPI Total
-                const totalValue = rawData.reduce((acc, row) => acc + cleanNumber(row[config.numericCol]), 0);
-                const count = rawData.length;
-                const avgValue = count > 0 ? totalValue / count : 0;
-
-                // 2. Agrupación por Categoría (Bar / Pie)
-                const categoryMap = {};
-                rawData.forEach(row => {
-                    const cat = row[config.categoryCol] || 'Otros';
-                    const val = cleanNumber(row[config.numericCol]);
-                    if (!categoryMap[cat]) categoryMap[cat] = 0;
-                    categoryMap[cat] += val;
-                });
-                const categoryData = Object.entries(categoryMap)
-                    .map(([name, value]) => ({ name, value }))
-                    .sort((a,b) => b.value - a.value)
-                    .slice(0, 10); // Top 10
-
-                // 3. Serie de Tiempo (Line Chart)
-                let timeData = [];
-                if (config.dateCol) {
-                    const timeMap = {};
-                    rawData.forEach(row => {
-                        const d = row[config.dateCol];
-                        if (!d) return;
-                        const val = cleanNumber(row[config.numericCol]);
-                        // Intentar normalizar fecha si es posible, sino usar string tal cual
-                        if (!timeMap[d]) timeMap[d] = 0;
-                        timeMap[d] += val;
-                    });
-                    timeData = Object.entries(timeMap)
-                        .map(([date, value]) => ({ date, value }))
-                        // Ordenamiento simple de fechas strings
-                        .sort((a, b) => new Date(a.date) - new Date(b.date));
-                }
-
-                return { totalValue, count, avgValue, categoryData, timeData };
-
-            }, [rawData, config]);
-
-            // --- UI DE CONTROL ---
-            const renderControls = () => (
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 grid grid-cols-1 md:grid-cols-4 gap-4 animate-fade-in">
-                    <div className="flex items-center gap-2 text-slate-700 font-semibold md:col-span-4 border-b border-slate-100 pb-2 mb-2">
-                        <div className="w-5 h-5 text-blue-600"><IconSettings /></div>
-                        <span>Configuración de Datos</span>
-                    </div>
-
-                    {/* Selector Métrica Principal (Y Axis) */}
-                    <div>
-                        <label className="block text-xs font-medium text-slate-500 mb-1">Métrica Principal (Números)</label>
-                        <select 
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            value={config.numericCol}
-                            onChange={(e) => setConfig({...config, numericCol: e.target.value})}
-                        >
-                            {headers.filter(h => colTypes[h] === 'number').map(h => <option key={h} value={h}>{h}</option>)}
-                        </select>
-                    </div>
-
-                    {/* Selector Dimensión (X Axis / Categoría) */}
-                    <div>
-                        <label className="block text-xs font-medium text-slate-500 mb-1">Categoría (Agrupador)</label>
-                        <select 
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            value={config.categoryCol}
-                            onChange={(e) => setConfig({...config, categoryCol: e.target.value})}
-                        >
-                            {headers.map(h => <option key={h} value={h}>{h}</option>)}
-                        </select>
-                    </div>
-
-                    {/* Selector Fecha */}
-                    <div>
-                        <label className="block text-xs font-medium text-slate-500 mb-1">Columna de Fecha</label>
-                        <select 
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            value={config.dateCol}
-                            onChange={(e) => setConfig({...config, dateCol: e.target.value})}
-                        >
-                            <option value="">-- Sin Fecha --</option>
-                            {headers.map(h => <option key={h} value={h}>{h}</option>)}
-                        </select>
-                    </div>
-                    
-                    {/* Botón Reset */}
-                     <div className="flex items-end">
-                        <button 
-                            onClick={() => setRawData([])}
-                            className="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium py-2 px-4 rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
-                        >
-                            <div className="w-4 h-4"><IconRefresh /></div> Reiniciar
-                        </button>
-                    </div>
-                </div>
-            );
-
-            // --- VISTA INICIAL ---
-            if (rawData.length === 0) {
-                return (
-                    <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
-                        <HeaderBrand />
-                        <div className="flex-1 flex flex-col items-center justify-center p-8">
-                            <div className="max-w-xl w-full bg-white rounded-xl shadow-lg p-10 text-center animate-fade-in border border-slate-100">
-                                <div className="bg-indigo-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
-                                    <div className="text-indigo-600 w-12 h-12"><IconUpload /></div>
-                                </div>
-                                <h1 className="text-3xl font-bold text-slate-800 mb-2">Generador de Dashboards</h1>
-                                <p className="text-slate-500 mb-8 leading-relaxed">
-                                    Sube <strong>cualquier archivo CSV</strong>. Nuestro sistema detectará automáticamente métricas, fechas y categorías para construir un reporte visual al instante.
-                                </p>
-                                <label className="block w-full cursor-pointer group">
-                                    <input type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
-                                    <div className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 px-6 rounded-lg transition-all transform group-hover:scale-[1.02] flex items-center justify-center gap-3 shadow-md hover:shadow-lg">
-                                        <div className="w-6 h-6"><IconUpload /></div>
-                                        <span className="text-lg">Analizar mi CSV</span>
-                                    </div>
-                                </label>
-                            </div>
-                            <p className="mt-8 text-xs text-slate-400">Soporta delimitadores por coma, punto y coma y tabuladores.</p>
+        // --- COMPONENTES UI BASE ---
+        const Header = ({ fileName, onReset }) => (
+            <div className="bg-slate-900 shadow-xl sticky top-0 z-50 border-b border-slate-800">
+                <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white p-1 rounded-md">
+                            <img src="https://2win.cl/wp-content/uploads/2025/06/Logo-RGB.png" alt="2WIN" className="w-[60px] h-[60px] object-contain" />
                         </div>
-                    </div>
-                );
-            }
-
-            // --- VISTA DASHBOARD ---
-            return (
-                <div className="min-h-screen bg-slate-50 font-sans pb-20">
-                    <HeaderBrand fileName={fileName} onReset={() => setRawData([])} />
-                    
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                        {renderControls()}
-
-                        {/* KPIS */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 fade-in">
-                            <KpiCard 
-                                title={`Total ${config.numericCol}`} 
-                                value={processedData.totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                                icon={<IconHash />} iconColor="text-indigo-600 bg-indigo-50"
-                            />
-                            <KpiCard 
-                                title="Registros Totales" 
-                                value={processedData.count.toLocaleString()}
-                                icon={<IconChart />} iconColor="text-emerald-600 bg-emerald-50"
-                            />
-                            <KpiCard 
-                                title={`Promedio por Registro`} 
-                                value={processedData.avgValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                                icon={<IconTag />} iconColor="text-blue-600 bg-blue-50"
-                            />
-                        </div>
-
-                        {/* GRÁFICOS */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 fade-in">
-                            {/* Serie de Tiempo */}
-                            {config.dateCol && (
-                                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 lg:col-span-2">
-                                    <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                                        <IconChart /> Tendencia Temporal: {config.numericCol}
-                                    </h3>
-                                    <div className="h-72">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <AreaChart data={processedData.timeData}>
-                                                <defs>
-                                                    <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8}/>
-                                                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                                                    </linearGradient>
-                                                </defs>
-                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                                <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickMargin={10} />
-                                                <YAxis stroke="#94a3b8" fontSize={12} />
-                                                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                                                <Area type="monotone" dataKey="value" stroke="#6366f1" fillOpacity={1} fill="url(#colorVal)" />
-                                            </AreaChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Ranking Categoría */}
-                            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                                    <IconChart /> Top 10 por {config.categoryCol}
-                                </h3>
-                                <div className="h-80">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart layout="vertical" data={processedData.categoryData} margin={{ left: 10 }}>
-                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={true} stroke="#e2e8f0" />
-                                            <XAxis type="number" stroke="#94a3b8" fontSize={12} />
-                                            <YAxis dataKey="name" type="category" width={140} stroke="#64748b" fontSize={11} />
-                                            <Tooltip cursor={{ fill: '#f1f5f9' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                                            <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20}>
-                                                {processedData.categoryData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-
-                            {/* Distribución Pie */}
-                            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                                    <IconChart /> Distribución de {config.numericCol}
-                                </h3>
-                                <div className="h-80">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie
-                                                data={processedData.categoryData}
-                                                cx="50%" cy="50%"
-                                                innerRadius={60} outerRadius={100}
-                                                paddingAngle={2}
-                                                dataKey="value"
-                                            >
-                                                {processedData.categoryData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                                            </Pie>
-                                            <Tooltip formatter={(val) => val.toLocaleString()} />
-                                            <Legend layout="horizontal" verticalAlign="bottom" align="center" />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Tabla Resumen */}
-                        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden fade-in">
-                            <div className="p-4 border-b border-slate-100 bg-slate-50"><h3 className="font-semibold text-slate-700">Vista de Datos (Primeros 20)</h3></div>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left text-slate-600">
-                                    <thead className="bg-slate-50 text-slate-500 uppercase font-medium text-xs">
-                                        <tr>
-                                            {headers.map((h, i) => i < 8 && <th key={h} className="px-6 py-3">{h}</th>)}
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {rawData.slice(0, 20).map((row, idx) => (
-                                            <tr key={idx} className="hover:bg-slate-50">
-                                                {headers.map((h, i) => i < 8 && <td key={i} className="px-6 py-3 whitespace-nowrap max-w-xs truncate">{row[h]}</td>)}
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-
-        // --- SUBCOMPONENTES ---
-        const HeaderBrand = ({ fileName, onReset }) => (
-            <div className="bg-slate-900 shadow-md border-b border-slate-800 sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-6">
-                        <img src="https://2win.cl/wp-content/uploads/2025/06/Logo-RGB.png" alt="2WIN" className="w-[68px] h-[68px] object-contain" />
-                        <div className="hidden md:block h-8 w-px bg-slate-700"></div>
+                        <div className="h-8 w-px bg-slate-700 hidden md:block"></div>
                         <div>
-                            <h1 className="text-lg font-bold text-white">Generador de Dashboard</h1>
-                            {fileName && <p className="text-slate-400 text-xs mt-0.5">Archivo: <span className="font-medium text-slate-200">{fileName}</span></p>}
+                            <h1 className="text-white font-bold text-lg leading-tight flex items-center gap-2">
+                                <span className="text-blue-400">AI</span> Analista
+                            </h1>
+                            <p className="text-slate-400 text-xs">
+                                {fileName ? `Procesando: ${fileName}` : 'Esperando datos...'}
+                            </p>
                         </div>
                     </div>
-                    {onReset && (
-                        <button onClick={onReset} className="text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
-                            <div className="w-4 h-4"><IconUpload /></div> Cargar Nuevo
+                    {fileName && (
+                        <button onClick={onReset} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-4 py-2 rounded-lg border border-slate-700 transition-all">
+                            <Icons.Refresh /> Reiniciar
                         </button>
                     )}
                 </div>
             </div>
         );
 
-        const KpiCard = ({ title, value, icon, iconColor }) => (
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-all">
-                <div className="flex justify-between items-center mb-2">
-                    <h3 className="text-slate-500 text-sm font-medium">{title}</h3>
-                    <div className={`p-2 rounded-lg ${iconColor || 'text-slate-600'} w-10 h-10 flex items-center justify-center`}>
-                        <div className="w-6 h-6">{icon}</div>
+        const KpiCard = ({ title, value, type }) => (
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-lg transition-all fade-in-up">
+                <div className="flex justify-between items-start mb-2">
+                    <h3 className="text-slate-500 text-xs font-bold uppercase tracking-wider">{title}</h3>
+                    <div className={`p-2 rounded-lg ${type === 'money' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+                        {type === 'money' ? <Icons.Currency /> : <Icons.ChartBar />}
                     </div>
                 </div>
-                <div className="text-2xl font-bold text-slate-800 mb-1">{value}</div>
+                <div className="text-2xl font-bold text-slate-800">{value}</div>
             </div>
         );
+
+        // --- LÓGICA DE PROCESAMIENTO (EL CEREBRO) ---
+
+        // 1. Limpiador de valores sucios
+        const cleanValue = (val) => {
+            if (val === null || val === undefined) return null;
+            if (typeof val === 'number') return val;
+            
+            const str = String(val).trim();
+            // Detectar fechas
+            if (str.match(/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/) || !isNaN(Date.parse(str)) && str.length > 5 && isNaN(str)) {
+                return new Date(str);
+            }
+            // Detectar números con formato moneda
+            const cleanStr = str.replace(/[^\d.,-]/g, '');
+            if (cleanStr && !isNaN(parseFloat(cleanStr.replace(',','.')))) {
+                // Heurística básica: si tiene coma y punto, asumimos el último como decimal o miles según posición
+                if (cleanStr.includes('.') && cleanStr.includes(',')) {
+                    // Formato 1.000,00
+                    if (cleanStr.indexOf('.') < cleanStr.indexOf(',')) return parseFloat(cleanStr.replace(/\./g, '').replace(',', '.'));
+                    // Formato 1,000.00
+                    return parseFloat(cleanStr.replace(/,/g, ''));
+                } else if (cleanStr.includes(',')) {
+                    // 1,5 -> 1.5
+                    return parseFloat(cleanStr.replace(',', '.'));
+                }
+                return parseFloat(cleanStr);
+            }
+            return str;
+        };
+
+        // 2. Extractor de texto para PDF/TXT
+        const extractTextData = async (file) => {
+            if (file.type === 'application/pdf') {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                let fullText = "";
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join("    "); // Separador grande para simular tabs
+                    fullText += pageText + "\n";
+                }
+                return fullText;
+            } else {
+                return await file.text();
+            }
+        };
+
+        // 3. Convertidor de Texto a JSON (Heurística)
+        const textToJSON = (text) => {
+            // Intentar detectar filas
+            const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
+            if (lines.length < 2) return [];
+
+            // Detectar delimitador común
+            const delimiters = [',', ';', '\t', '|', '    '];
+            let bestDelim = ',';
+            let maxCols = 0;
+
+            delimiters.forEach(delim => {
+                const cols = lines[0].split(delim).length;
+                if (cols > maxCols) {
+                    maxCols = cols;
+                    bestDelim = delim;
+                }
+            });
+
+            const headers = lines[0].split(bestDelim).map(h => h.trim().replace(/^"|"$/g, ''));
+            const result = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].split(bestDelim);
+                // Intento simple de alinear columnas
+                if (cols.length > 1) {
+                    const obj = {};
+                    headers.forEach((h, idx) => {
+                        obj[h] = cleanValue(cols[idx] ? cols[idx].trim().replace(/^"|"$/g, '') : null);
+                    });
+                    result.push(obj);
+                }
+            }
+            return result;
+        };
+
+        // 4. Analizador Principal
+        const analyzeData = (data) => {
+            if (!data || data.length === 0) return null;
+
+            const headers = Object.keys(data[0]);
+            const columns = {};
+
+            // Clasificar columnas
+            headers.forEach(h => {
+                let numCount = 0;
+                let dateCount = 0;
+                let strCount = 0;
+                let uniqueValues = new Set();
+
+                data.forEach(row => {
+                    const val = row[h];
+                    if (typeof val === 'number') numCount++;
+                    else if (val instanceof Date) dateCount++;
+                    else if (typeof val === 'string') {
+                        strCount++;
+                        uniqueValues.add(val);
+                    }
+                });
+
+                if (numCount > data.length * 0.5) columns[h] = { type: 'number', sum: data.reduce((a, b) => a + (typeof b[h] === 'number' ? b[h] : 0), 0) };
+                else if (dateCount > data.length * 0.5) columns[h] = { type: 'date' };
+                else if (strCount > 0) columns[h] = { type: 'string', unique: uniqueValues.size };
+            });
+
+            // Generar visualizaciones basadas en tipos
+            const kpis = [];
+            const charts = [];
+            
+            const numCols = Object.keys(columns).filter(k => columns[k].type === 'number');
+            const dateCol = Object.keys(columns).find(k => columns[k].type === 'date'); // Usar la primera fecha encontrada
+            const catCols = Object.keys(columns).filter(k => columns[k].type === 'string' && columns[k].unique < 20); // Categorías con pocos valores únicos
+
+            // 1. Crear KPIs para cada columna numérica
+            numCols.forEach(col => {
+                kpis.push({
+                    title: `Total ${col}`,
+                    value: columns[col].sum.toLocaleString(undefined, { maximumFractionDigits: 2 }),
+                    type: col.toLowerCase().includes('amount') || col.toLowerCase().includes('precio') || col.toLowerCase().includes('total') ? 'money' : 'number'
+                });
+            });
+
+            // 2. Crear Gráficos de Tendencia (Si hay fecha y números)
+            if (dateCol && numCols.length > 0) {
+                // Agrupar por fecha
+                const timeMap = {};
+                data.forEach(row => {
+                    const dateVal = row[dateCol];
+                    if (!dateVal || !(dateVal instanceof Date)) return;
+                    const dateStr = dateVal.toLocaleDateString();
+                    
+                    if (!timeMap[dateStr]) timeMap[dateStr] = {};
+                    numCols.forEach(numCol => {
+                        if (!timeMap[dateStr][numCol]) timeMap[dateStr][numCol] = 0;
+                        timeMap[dateStr][numCol] += (typeof row[numCol] === 'number' ? row[numCol] : 0);
+                    });
+                });
+                
+                const timeData = Object.entries(timeMap).map(([date, vals]) => ({ date, ...vals })).sort((a,b) => new Date(a.date) - new Date(b.date));
+                
+                // Generar un gráfico por cada métrica importante (o agrupar)
+                numCols.slice(0, 4).forEach(numCol => { // Limitar a 4 gráficos de línea para no saturar
+                    charts.push({
+                        type: 'line',
+                        title: `Evolución de ${numCol} por ${dateCol}`,
+                        data: timeData,
+                        xKey: 'date',
+                        yKey: numCol
+                    });
+                });
+            }
+
+            // 3. Crear Gráficos de Distribución (Barras/Donas para categorías)
+            catCols.forEach(catCol => {
+                // Buscar una métrica numérica para agregar (ej: Ventas por País) o contar (Registros por País)
+                const metricCol = numCols.find(n => n.toLowerCase().includes('total') || n.toLowerCase().includes('amount')) || numCols[0];
+                
+                const groupMap = {};
+                data.forEach(row => {
+                    const cat = row[catCol] || 'N/A';
+                    if (!groupMap[cat]) groupMap[cat] = 0;
+                    if (metricCol) {
+                        groupMap[cat] += (typeof row[metricCol] === 'number' ? row[metricCol] : 0);
+                    } else {
+                        groupMap[cat] += 1; // Count
+                    }
+                });
+
+                const chartData = Object.entries(groupMap)
+                    .map(([name, value]) => ({ name, value }))
+                    .sort((a,b) => b.value - a.value)
+                    .slice(0, 10); // Top 10
+
+                charts.push({
+                    type: chartData.length < 5 ? 'pie' : 'bar',
+                    title: metricCol ? `${metricCol} por ${catCol}` : `Distribución de ${catCol}`,
+                    data: chartData,
+                    xKey: 'name',
+                    yKey: 'value'
+                });
+            });
+
+            return { kpis, charts, raw: data.slice(0, 50), totalRows: data.length };
+        };
+
+        // --- COMPONENTE PRINCIPAL ---
+        function App() {
+            const [analysis, setAnalysis] = useState(null);
+            const [loading, setLoading] = useState(false);
+            const [fileName, setFileName] = useState("");
+
+            const handleFile = async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+
+                setLoading(true);
+                setFileName(file.name);
+                
+                try {
+                    let jsonData = [];
+
+                    if (file.name.match(/\.(xlsx|xls|csv)$/i)) {
+                        // Excel / CSV Nativo
+                        const buffer = await file.arrayBuffer();
+                        const wb = XLSX.read(buffer);
+                        const ws = wb.Sheets[wb.SheetNames[0]];
+                        // Convertir a JSON crudo primero para limpiar
+                        const rawJson = XLSX.utils.sheet_to_json(ws, { defval: null });
+                        // Limpiar datos
+                        jsonData = rawJson.map(row => {
+                            const newRow = {};
+                            Object.keys(row).forEach(k => newRow[k] = cleanValue(row[k]));
+                            return newRow;
+                        });
+                    } else {
+                        // PDF / TXT / DOC (Tratar como texto plano)
+                        const text = await extractTextData(file);
+                        jsonData = textToJSON(text);
+                    }
+
+                    if (jsonData.length === 0) throw new Error("No se encontraron datos tabulares.");
+                    
+                    const result = analyzeData(jsonData);
+                    setAnalysis(result);
+
+                } catch (err) {
+                    console.error(err);
+                    alert("No pudimos extraer gráficos de este archivo. Intenta con un Excel o CSV estándar.");
+                    setFileName("");
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            // VISTA: CARGANDO
+            if (loading) {
+                return (
+                    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+                        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600 mb-4"></div>
+                        <h2 className="text-xl font-semibold text-slate-700">Analizando Datos con IA...</h2>
+                        <p className="text-slate-500">Detectando patrones, fechas y métricas.</p>
+                    </div>
+                );
+            }
+
+            // VISTA: UPLOAD
+            if (!analysis) {
+                return (
+                    <div className="min-h-screen bg-slate-50 flex flex-col">
+                        <Header />
+                        <div className="flex-1 flex flex-col items-center justify-center p-6">
+                            <div className="max-w-2xl w-full bg-white rounded-2xl shadow-xl p-12 text-center border border-slate-100">
+                                <div className="mx-auto w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6 text-blue-600">
+                                    <Icons.CloudUpload />
+                                </div>
+                                <h2 className="text-3xl font-bold text-slate-900 mb-4">Suelta tus Archivos Aquí</h2>
+                                <p className="text-slate-500 mb-8 text-lg">
+                                    Nuestro sistema es agnóstico. Sube <strong>Excel, CSV, PDF o TXT</strong>. 
+                                    Nosotros encontraremos los datos, las fechas y los números para crear un dashboard instantáneo.
+                                </p>
+                                
+                                <label className="relative group cursor-pointer inline-block">
+                                    <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg blur opacity-25 group-hover:opacity-75 transition duration-200"></div>
+                                    <input type="file" onChange={handleFile} className="hidden" accept=".csv,.xlsx,.xls,.pdf,.txt,.json" />
+                                    <div className="relative bg-white text-slate-900 font-semibold py-4 px-8 rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-all flex items-center gap-3">
+                                        <Icons.Magic /> Analizar Documento Automáticamente
+                                    </div>
+                                </label>
+                                
+                                <div className="mt-10 grid grid-cols-3 gap-4 text-xs text-slate-400 border-t border-slate-100 pt-6">
+                                    <div className="flex flex-col items-center gap-1">
+                                        <span className="font-semibold text-slate-600">Excel / CSV</span>
+                                        <span>Procesamiento Nativo</span>
+                                    </div>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <span className="font-semibold text-slate-600">PDF / Docs</span>
+                                        <span>Extracción de Tablas</span>
+                                    </div>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <span className="font-semibold text-slate-600">JSON / API</span>
+                                        <span>Estructura Directa</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // VISTA: DASHBOARD RESULTANTE
+            return (
+                <div className="min-h-screen bg-slate-50 pb-20">
+                    <Header fileName={fileName} onReset={() => { setAnalysis(null); setFileName(""); }} />
+                    
+                    <main className="max-w-7xl mx-auto px-4 py-8">
+                        
+                        {/* SECCIÓN 1: KPIs DETECTADOS */}
+                        <div className="mb-8">
+                            <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">Resumen</span>
+                                Métricas Clave Detectadas
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {analysis.kpis.map((kpi, idx) => (
+                                    <div key={idx} className={`delay-${(idx+1)*100}`}>
+                                        <KpiCard {...kpi} />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* SECCIÓN 2: GRÁFICOS GENERADOS AUTOMÁTICAMENTE */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                            {analysis.charts.map((chart, idx) => (
+                                <div key={idx} className={`bg-white p-6 rounded-xl shadow-sm border border-slate-100 fade-in-up delay-${(idx+1)*100} ${chart.type === 'line' ? 'lg:col-span-2' : ''}`}>
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="font-bold text-slate-700">{chart.title}</h3>
+                                        <span className="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded uppercase">{chart.type === 'line' ? 'Tendencia' : 'Distribución'}</span>
+                                    </div>
+                                    <div className="h-72 w-full">
+                                        <ResponsiveContainer>
+                                            {chart.type === 'line' ? (
+                                                <AreaChart data={chart.data}>
+                                                    <defs>
+                                                        <linearGradient id={`grad${idx}`} x1="0" y1="0" x2="0" y2="1">
+                                                            <stop offset="5%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.8}/>
+                                                            <stop offset="95%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0}/>
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                                    <XAxis dataKey={chart.xKey} fontSize={12} stroke="#94a3b8" />
+                                                    <YAxis fontSize={12} stroke="#94a3b8" />
+                                                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} />
+                                                    <Area type="monotone" dataKey={chart.yKey} stroke={COLORS[idx % COLORS.length]} fill={`url(#grad${idx})`} strokeWidth={2} />
+                                                </AreaChart>
+                                            ) : chart.type === 'bar' ? (
+                                                <BarChart data={chart.data} layout="vertical" margin={{ left: 20 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                                                    <XAxis type="number" fontSize={12} stroke="#94a3b8" />
+                                                    <YAxis dataKey={chart.xKey} type="category" width={100} fontSize={11} stroke="#64748b" />
+                                                    <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '8px', border: 'none' }} />
+                                                    <Bar dataKey={chart.yKey} fill={COLORS[idx % COLORS.length]} radius={[0,4,4,0]} barSize={20} />
+                                                </BarChart>
+                                            ) : (
+                                                <PieChart>
+                                                    <Pie
+                                                        data={chart.data}
+                                                        cx="50%" cy="50%"
+                                                        innerRadius={60} outerRadius={80}
+                                                        paddingAngle={5}
+                                                        dataKey={chart.yKey}
+                                                    >
+                                                        {chart.data.map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                        ))}
+                                                    </Pie>
+                                                    <Tooltip />
+                                                    <Legend />
+                                                </PieChart>
+                                            )}
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* SECCIÓN 3: TABLA DE DATOS CRUDA */}
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden fade-in-up delay-500">
+                            <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                                <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                                    <Icons.File /> Vista Previa de Datos
+                                </h3>
+                                <span className="text-xs text-slate-500">Mostrando {analysis.raw.length} de {analysis.totalRows} filas</span>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left text-slate-600">
+                                    <thead className="bg-slate-50 text-slate-500 uppercase text-xs">
+                                        <tr>
+                                            {Object.keys(analysis.raw[0] || {}).slice(0, 8).map(h => (
+                                                <th key={h} className="px-6 py-3 font-semibold">{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {analysis.raw.map((row, i) => (
+                                            <tr key={i} className="hover:bg-slate-50">
+                                                {Object.keys(row).slice(0, 8).map((k, j) => (
+                                                    <td key={j} className="px-6 py-3 whitespace-nowrap max-w-xs truncate">
+                                                        {row[k] instanceof Date ? row[k].toLocaleDateString() : row[k]}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </main>
+                </div>
+            );
+        }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
