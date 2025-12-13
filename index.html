@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analista Cognitivo</title>
+    <title>Solucionador.cl - Dashboard Inteligente</title>
     
     <!-- Stack Tecnológico -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -15,7 +15,7 @@
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     
     <style>
-        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #f8fafc; color: #1e293b; }
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #f8fafc; color: #334155; }
         .fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(10px); }
         .delay-100 { animation-delay: 100ms; }
         .delay-200 { animation-delay: 200ms; }
@@ -23,452 +23,452 @@
         @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
         
         .glass-card { background: white; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-        .prose-analysis p { margin-bottom: 0.8em; line-height: 1.6; }
-        .prose-analysis strong { color: #0f172a; font-weight: 600; }
-        .icon-svg { width: 100%; height: 100%; display: block; }
+        .prose-analysis p { margin-bottom: 1em; line-height: 1.6; font-size: 1rem; color: #475569; }
+        .prose-analysis strong { color: #0f172a; font-weight: 700; }
+        .prose-analysis li { margin-bottom: 0.5em; }
+        .prose-analysis ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
+        
+        /* Efecto de pensamiento de IA */
+        .thinking-pulse { animation: pulse-blue 2s infinite; }
+        @keyframes pulse-blue { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect, useRef } = React;
+        
+        // --- RECHARTS SAFE IMPORT ---
+        const Recharts = window.Recharts || {};
         const { 
             BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
             ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area 
-        } = window.Recharts;
+        } = Recharts;
 
-        // --- PALETA CORPORATIVA ---
-        const COLORS = ['#2563eb', '#059669', '#d97706', '#dc2626', '#7c3aed', '#0891b2'];
+        const COLORS = ['#2563eb', '#059669', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#db2777'];
 
-        // --- ICONOS NATIVOS (SVG) ---
-        const Icons = {
-            UploadCloud: () => (
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/>
-                </svg>
-            ),
-            BrainCircuit: () => (
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.937-.5"/><path d="M19.937 17.5A4 4 0 0 1 18 18"/>
-                </svg>
-            ),
-            BookOpen: () => (
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-                </svg>
-            ),
-            LayoutDashboard: () => (
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>
-                </svg>
-            ),
-            RefreshCw: () => (
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>
-                </svg>
-            )
-        };
+        // --- ICONOS (COMPONENTES INDIVIDUALES) ---
+        const BrainIcon = ({className}) => (
+            <svg className={className || "w-5 h-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+        );
+        const UploadIcon = ({className}) => (
+            <svg className={className || "w-12 h-12 text-blue-500"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+        );
+        const RefreshIcon = ({className}) => (
+            <svg className={className || "w-4 h-4"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+        );
+        const SparklesIcon = ({className}) => (
+            <svg className={className || "w-4 h-4"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+            </svg>
+        );
+        const LockIcon = ({className}) => (
+            <svg className={className || "w-4 h-4"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+        );
+        const TrashIcon = ({className}) => (
+            <svg className={className || "w-4 h-4"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+        );
+        const ExternalLinkIcon = ({className}) => (
+            <svg className={className || "w-4 h-4"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+        );
 
-        // --- CEREBRO ANALÍTICO (Simulado) ---
+        // --- CEREBRO LOCAL (PRE-PROCESAMIENTO) ---
+        const processDataLocally = (data) => {
+            const headers = Object.keys(data[0]);
+            const columns = {};
 
-        const CONTEXTS = {
-            MARKETING: {
-                name: "Marketing & Performance",
-                keywords: ['campaign', 'campaña', 'clicks', 'clics', 'impressions', 'impresiones', 'ctr', 'cpc', 'cpm', 'reach', 'alcance', 'engagement'],
-                primaryMetric: ['cost', 'amount', 'gasto', 'inversion', 'clicks', 'impressions'],
-                dimension: ['campaign', 'campaña', 'source', 'fuente', 'medium', 'ad', 'anuncio']
-            },
-            FINANCE: {
-                name: "Finanzas & Facturación",
-                keywords: ['invoice', 'factura', 'total', 'amount', 'monto', 'tax', 'impuesto', 'balance', 'saldo', 'due', 'vencimiento', 'net', 'gross'],
-                primaryMetric: ['total', 'amount', 'monto', 'net', 'gross'],
-                dimension: ['customer', 'cliente', 'vendor', 'proveedor', 'category', 'categoria', 'status', 'estado']
-            },
-            SALES: {
-                name: "Ventas Comerciales",
-                keywords: ['sale', 'venta', 'revenue', 'ingreso', 'profit', 'ganancia', 'customer', 'cliente', 'product', 'producto', 'qty', 'cantidad'],
-                primaryMetric: ['revenue', 'total', 'profit'],
-                dimension: ['product', 'producto', 'region', 'salesperson', 'vendedor']
-            }
-        };
-
-        const cleanCurrency = (val) => {
-            if (typeof val === 'number') return val;
-            if (!val) return 0;
-            const str = String(val).trim();
-            // Eliminar símbolos y convertir comas/puntos
-            const clean = str.replace(/[^\d.,-]/g, ''); 
-            if (clean.includes(',') && clean.includes('.')) {
-                return parseFloat(clean.replace(/,/g, '')); // Asume formato 1,000.00
-            }
-            return parseFloat(clean.replace(',', '.')) || 0;
-        };
-
-        const detectContext = (headers) => {
-            const scores = { MARKETING: 0, FINANCE: 0, SALES: 0 };
-            const lowerHeaders = headers.map(h => h.toLowerCase());
-            
-            Object.keys(CONTEXTS).forEach(key => {
-                CONTEXTS[key].keywords.forEach(kw => {
-                    lowerHeaders.forEach(h => {
-                        if (h.includes(kw)) scores[key] += 10;
-                    });
+            headers.forEach(h => {
+                let numCount = 0;
+                let dateCount = 0;
+                let sum = 0;
+                let distinct = new Set();
+                
+                data.forEach(row => {
+                    const val = row[h];
+                    if (typeof val === 'number') { numCount++; sum += val; }
+                    else if (val instanceof Date) dateCount++;
+                    else if (typeof val === 'string') {
+                        const clean = parseFloat(val.replace(/[^\d.,-]/g, '').replace(',','.'));
+                        if (!isNaN(clean) && val.match(/\d/)) { 
+                            numCount++; sum += clean; 
+                        } else {
+                            distinct.add(val);
+                        }
+                    }
                 });
+
+                let type = 'string';
+                if (numCount > data.length * 0.7) type = 'number';
+                else if (dateCount > data.length * 0.7) type = 'date';
+
+                columns[h] = { type, sum, distinct: distinct.size };
             });
 
-            const winner = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
-            return scores[winner] > 0 ? winner : 'GENERAL';
+            return { headers, columns, rowCount: data.length, sample: data.slice(0, 5) };
         };
 
-        const generateStory = (data, context, kpis) => {
-            const paragraphs = [];
-            const { totalRows, dateRange } = kpis;
-            
-            paragraphs.push(`He analizado un conjunto de datos que contiene **${totalRows} registros**. ` +
-                (dateRange ? `La información abarca el periodo desde **${dateRange.start}** hasta **${dateRange.end}**.` : "") +
-                ` Basado en las columnas detectadas, este archivo parece ser un reporte de **${CONTEXTS[context]?.name || 'Datos Generales'}**.`);
+        // --- CONEXIÓN DEEPSEEK ---
+        const askDeepSeek = async (apiKey, fileSummary) => {
+            const prompt = `
+                Actúa como un Analista de Datos Senior experto en Visualización para Solucionador.cl.
+                Tengo un dataset con la siguiente estructura (Metadata):
+                ${JSON.stringify(fileSummary)}
 
-            if (kpis.primaryMetric) {
-                paragraphs.push(`El volumen total acumulado para **${kpis.primaryMetric.label}** asciende a **${kpis.primaryMetric.valueFormatted}**. ` +
-                `Este indicador es clave para entender la magnitud de la operación en este periodo.`);
+                Tu tarea es:
+                1. Deducir de qué trata el archivo (Ventas, Marketing, Inventario, RRHH, etc).
+                2. Escribir un resumen ejecutivo (HTML <p>, <strong>) explicando los hallazgos potenciales.
+                3. Identificar 3 KPIs numéricos clave para mostrar en tarjetas (título, y qué columna usar para calcularlo).
+                4. Diseñar 2 gráficos relevantes:
+                   - Gráfico 1: Debe ser de Barras o Torta. Define qué columna es la categoría (X) y cuál es el valor (Y).
+                   - Gráfico 2: Si hay fechas, haz un gráfico de Línea (Tendencia). Si no, haz otro de Barras.
+
+                Responde ESTRICTAMENTE en formato JSON válido con esta estructura:
+                {
+                    "title": "Título del Dashboard",
+                    "summary": "Texto HTML del análisis...",
+                    "kpis": [
+                        { "label": "Título KPI", "column": "NombreColumnaExacto", "operation": "sum" | "count" | "avg" }
+                    ],
+                    "charts": [
+                        { "id": "chart1", "type": "bar"|"line"|"pie", "title": "Título Gráfico", "x_column": "ColumnaX", "y_column": "ColumnaY" },
+                        { "id": "chart2", "type": "bar"|"line"|"pie", "title": "Título Gráfico", "x_column": "ColumnaX", "y_column": "ColumnaY" }
+                    ]
+                }
+                No incluyas markdown, solo el JSON raw.
+            `;
+
+            const response = await fetch("https://api.deepseek.com/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: "deepseek-chat",
+                    messages: [{ role: "user", content: prompt }],
+                    temperature: 0.2
+                })
+            });
+
+            if (!response.ok) {
+                if (response.status === 401) throw new Error("API Key inválida");
+                throw new Error("Error conectando con DeepSeek");
             }
 
-            if (kpis.topDimension) {
-                paragraphs.push(`Al desglosar la información, se observa que **"${kpis.topDimension.name}"** lidera el rendimiento en **${kpis.topDimension.label}**, ` + 
-                `representando una parte significativa del total (${kpis.topDimension.percentage}%). ` +
-                `Esto sugiere una concentración importante en este segmento.`);
-            }
-
-            if (context === 'FINANCE') {
-                paragraphs.push(`💡 **Recomendación:** Verifica los estados de las facturas pendientes, ya que el flujo de caja depende de la recaudación oportuna de estos montos.`);
-            } else if (context === 'MARKETING') {
-                paragraphs.push(`💡 **Recomendación:** Considerando el alto volumen de ${kpis.secondaryMetric?.label || 'interacciones'}, sería prudente optimizar el presupuesto hacia las campañas con mejor CTR.`);
-            }
-
-            return paragraphs;
+            const json = await response.json();
+            let cleanContent = json.choices[0].message.content;
+            cleanContent = cleanContent.replace(/```json/g, '').replace(/```/g, '').trim();
+            return JSON.parse(cleanContent);
         };
 
+        // --- COMPONENTE PRINCIPAL ---
         function App() {
-            const [stage, setStage] = useState('UPLOAD'); 
-            const [reportData, setReportData] = useState(null);
-            const [fileName, setFileName] = useState('');
+            const [apiKey, setApiKey] = useState(localStorage.getItem('ds_key') || '');
+            const [view, setView] = useState(apiKey ? 'UPLOAD' : 'LOGIN');
+            const [status, setStatus] = useState('IDLE');
+            const [rawData, setRawData] = useState([]);
+            const [dashboardConfig, setDashboardConfig] = useState(null);
+            const [processedCharts, setProcessedCharts] = useState([]);
+            const [processedKPIs, setProcessedKPIs] = useState([]);
+            const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+
+            const handleLogin = (key) => {
+                if(!key.startsWith('sk-')) { alert("La llave debe empezar con sk-"); return; }
+                localStorage.setItem('ds_key', key);
+                setApiKey(key);
+                setView('UPLOAD');
+            };
+
+            const handleLogout = () => {
+                localStorage.removeItem('ds_key');
+                setApiKey('');
+                setRawData([]);
+                setDashboardConfig(null);
+                setView('LOGIN');
+            };
 
             const processFile = async (file) => {
-                setStage('ANALYZING');
-                setFileName(file.name);
-
+                setStatus('READING');
                 try {
-                    const data = await readFile(file);
+                    const buffer = await file.arrayBuffer();
+                    const wb = XLSX.read(buffer);
+                    const ws = wb.Sheets[wb.SheetNames[0]];
+                    const rawJson = XLSX.utils.sheet_to_json(ws, { header: 1 });
                     
-                    await new Promise(r => setTimeout(r, 1500)); // Delay para efecto de "pensando"
+                    let headerIndex = 0, maxCols = 0;
+                    rawJson.slice(0, 15).forEach((row, idx) => {
+                        const cols = row.filter(c => typeof c === 'string' && c.length > 1).length;
+                        if(cols > maxCols) { maxCols = cols; headerIndex = idx; }
+                    });
 
-                    const headers = Object.keys(data[0]);
-                    const contextType = detectContext(headers);
-                    const contextConfig = CONTEXTS[contextType] || { primaryMetric: [], dimension: [] };
+                    const range = XLSX.utils.decode_range(ws['!ref']);
+                    range.s.r = headerIndex;
+                    const data = XLSX.utils.sheet_to_json(ws, { range: range, defval: null });
+                    setRawData(data);
 
-                    const numCols = headers.filter(h => data.some(row => typeof row[h] === 'number' || !isNaN(cleanCurrency(row[h]))));
-                    const dateCol = headers.find(h => h.toLowerCase().includes('date') || h.toLowerCase().includes('fecha'));
+                    const summary = processDataLocally(data);
                     
-                    let mainMetricCol = numCols.find(h => contextConfig.primaryMetric.some(kw => h.toLowerCase().includes(kw))) || numCols[0];
-                    
-                    let mainDimCol = headers.find(h => contextConfig.dimension.some(kw => h.toLowerCase().includes(kw)) && h !== mainMetricCol);
-                    if (!mainDimCol) mainDimCol = headers.find(h => typeof data[0][h] === 'string' && data[0][h].length < 50);
+                    setStatus('THINKING');
+                    const aiConfig = await askDeepSeek(apiKey, summary);
+                    setDashboardConfig(aiConfig);
 
-                    if (!mainMetricCol) throw new Error("No se detectaron columnas numéricas para analizar.");
+                    const calcKPIs = aiConfig.kpis.map(kpi => {
+                        let val = 0;
+                        if (kpi.operation === 'count') {
+                            val = data.length;
+                        } else {
+                            val = data.reduce((acc, row) => {
+                                const v = row[kpi.column];
+                                const num = typeof v === 'number' ? v : parseFloat(String(v).replace(/[^\d.-]/g, '')) || 0;
+                                return acc + num;
+                            }, 0);
+                            if (kpi.operation === 'avg') val = val / data.length;
+                        }
+                        return { ...kpi, value: val };
+                    });
+                    setProcessedKPIs(calcKPIs);
 
-                    let totalSum = 0;
-                    let groupedData = {};
-                    let timeSeries = {};
-                    let minDate = null, maxDate = null;
-
-                    data.forEach(row => {
-                        const val = cleanCurrency(row[mainMetricCol]);
-                        totalSum += val;
-
-                        const cat = row[mainDimCol] || 'Otros';
-                        groupedData[cat] = (groupedData[cat] || 0) + val;
-
-                        if (dateCol) {
-                            const d = new Date(row[dateCol]);
-                            if (!isNaN(d)) {
-                                const dateKey = d.toLocaleDateString('es-CL');
-                                timeSeries[dateKey] = (timeSeries[dateKey] || 0) + val;
-                                if (!minDate || d < minDate) minDate = d;
-                                if (!maxDate || d > maxDate) maxDate = d;
+                    const calcCharts = aiConfig.charts.map(chart => {
+                        const map = {};
+                        data.forEach(row => {
+                            let xVal = row[chart.x_column];
+                            if (chart.type === 'line' && (String(xVal).includes('/') || String(xVal).includes('-'))) {
+                                const d = new Date(xVal);
+                                if (!isNaN(d)) xVal = d.toISOString().split('T')[0];
                             }
+                            const key = String(xVal || 'Otros');
+                            
+                            let yVal = 0;
+                            if (chart.y_column) {
+                                const rawY = row[chart.y_column];
+                                yVal = typeof rawY === 'number' ? rawY : parseFloat(String(rawY).replace(/[^\d.-]/g, '')) || 0;
+                            } else {
+                                yVal = 1;
+                            }
+
+                            map[key] = (map[key] || 0) + yVal;
+                        });
+
+                        let chartData = Object.entries(map).map(([name, value]) => ({ name, value }));
+                        if (chart.type === 'line') {
+                            chartData.sort((a,b) => new Date(a.name) - new Date(b.name));
+                        } else {
+                            chartData.sort((a,b) => b.value - a.value).slice(0, 10);
                         }
+                        return { ...chart, data: chartData };
                     });
+                    setProcessedCharts(calcCharts);
 
-                    const chartDataBar = Object.entries(groupedData)
-                        .map(([name, value]) => ({ name, value }))
-                        .sort((a,b) => b.value - a.value)
-                        .slice(0, 10);
+                    setStatus('DONE');
 
-                    const chartDataLine = Object.entries(timeSeries)
-                        .map(([date, value]) => ({ date, value, _ts: new Date(date.split('/').reverse().join('-')).getTime() }))
-                        .sort((a,b) => a._ts - b._ts);
-
-                    const topItem = chartDataBar[0];
-                    const kpis = {
-                        totalRows: data.length,
-                        dateRange: (minDate && maxDate) ? { start: minDate.toLocaleDateString(), end: maxDate.toLocaleDateString() } : null,
-                        primaryMetric: {
-                            label: mainMetricCol,
-                            valueRaw: totalSum,
-                            valueFormatted: totalSum.toLocaleString('es-CL', { style: 'currency', currency: 'USD' })
-                        },
-                        topDimension: topItem ? {
-                            label: mainDimCol,
-                            name: topItem.name,
-                            percentage: ((topItem.value / totalSum) * 100).toFixed(1)
-                        } : null
-                    };
-
-                    const story = generateStory(data, contextType, kpis);
-
-                    setReportData({
-                        context: contextType,
-                        headers,
-                        kpis,
-                        story,
-                        charts: {
-                            bar: chartDataBar,
-                            line: chartDataLine
-                        }
-                    });
-                    setStage('REPORT');
-
-                } catch (error) {
-                    console.error(error);
-                    alert("No pude procesar este archivo correctamente. " + error.message);
-                    setStage('UPLOAD');
+                } catch (e) {
+                    console.error(e);
+                    if (e.message.includes("API Key")) {
+                        alert("Tu API Key de DeepSeek no es válida o se quedó sin saldo.");
+                        handleLogout();
+                    } else {
+                        alert("Error procesando: " + e.message);
+                        setStatus('IDLE');
+                    }
                 }
             };
 
-            const readFile = (file) => {
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        try {
-                            const wb = XLSX.read(e.target.result, { type: 'array' });
-                            const ws = wb.Sheets[wb.SheetNames[0]];
-                            const raw = XLSX.utils.sheet_to_json(ws, { header: 1 });
-                            
-                            let headerRowIdx = 0;
-                            let maxStrings = 0;
-                            // Buscar la fila de cabecera mas probable
-                            raw.slice(0,10).forEach((row, idx) => {
-                                if (!Array.isArray(row)) return;
-                                const strCount = row.filter(c => typeof c === 'string').length;
-                                if (strCount > maxStrings) {
-                                    maxStrings = strCount;
-                                    headerRowIdx = idx;
-                                }
-                            });
-                            
-                            const range = XLSX.utils.decode_range(ws['!ref']);
-                            range.s.r = headerRowIdx;
-                            const correctData = XLSX.utils.sheet_to_json(ws, { range: range });
-                            resolve(correctData);
-                        } catch (err) {
-                            reject(err);
-                        }
-                    };
-                    reader.readAsArrayBuffer(file);
-                });
-            };
+            // --- VISTAS ---
 
-            if (stage === 'UPLOAD') {
-                return (
-                    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-                        <Header />
-                        <div className="flex-1 flex flex-col items-center justify-center p-6">
-                            <div className="max-w-xl w-full text-center space-y-8">
-                                <div className="space-y-2">
-                                    <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Analista de Datos AI</h1>
-                                    <p className="text-slate-500 text-lg">
-                                        Sube cualquier reporte (Facturas, Ventas, Marketing). <br/>
-                                        Yo lo leeré, entenderé el contexto y te contaré la historia detrás de los números.
-                                    </p>
-                                </div>
+            if (view === 'LOGIN') return (
+                <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-900">
+                    <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.1),transparent_50%)]"></div>
 
-                                <div className="bg-white p-10 rounded-3xl shadow-xl border border-slate-100 transition-all hover:shadow-2xl group cursor-pointer relative overflow-hidden">
-                                    <input 
-                                        type="file" 
-                                        accept=".csv,.xlsx,.xls" 
-                                        onChange={(e) => e.target.files[0] && processFile(e.target.files[0])}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                    />
-                                    <div className="absolute inset-0 bg-blue-50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                    
-                                    <div className="relative z-0 flex flex-col items-center gap-4">
-                                        <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                                            <Icons.UploadCloud />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <h3 className="text-xl font-semibold text-slate-800">Arrastra o selecciona tu archivo</h3>
-                                            <p className="text-sm text-slate-400">Soporta Excel (.xlsx) y CSV</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-3 gap-4 text-center text-xs text-slate-400">
-                                    <div>1. Lectura Inteligente</div>
-                                    <div>2. Detección de Contexto</div>
-                                    <div>3. Generación de Relato</div>
-                                </div>
+                    <div className="glass-card p-8 rounded-2xl max-w-md w-full relative z-10 shadow-2xl animate-fade-in text-center">
+                        <div className="flex justify-center mb-6">
+                            <div className="p-3 bg-blue-600 rounded-xl shadow-lg">
+                                <BrainIcon className="w-10 h-10 text-white" />
                             </div>
                         </div>
-                    </div>
-                );
-            }
-
-            if (stage === 'ANALYZING') {
-                return (
-                    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center font-sans">
-                        <div className="text-center space-y-6">
-                            <div className="relative w-24 h-24 mx-auto">
-                                <div className="absolute inset-0 border-4 border-slate-200 rounded-full"></div>
-                                <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
-                                <div className="absolute inset-0 flex items-center justify-center text-blue-600">
-                                    <Icons.BrainCircuit />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <h2 className="text-xl font-bold text-slate-800">Analizando Documento...</h2>
-                                <p className="text-slate-500 animate-pulse">Entendiendo columnas • Buscando patrones • Redactando informe</p>
-                            </div>
-                        </div>
-                    </div>
-                );
-            }
-
-            return (
-                <div className="min-h-screen bg-slate-50 font-sans pb-20">
-                    <Header onReset={() => setStage('UPLOAD')} />
-
-                    <main className="max-w-5xl mx-auto px-4 py-10 space-y-10">
                         
-                        <section className="fade-in">
-                            <div className="flex items-center gap-3 mb-6">
-                                <div className="p-2 bg-indigo-100 text-indigo-700 rounded-lg">
-                                    <Icons.BookOpen />
-                                </div>
-                                <h2 className="text-2xl font-bold text-slate-800">Resumen Ejecutivo</h2>
-                            </div>
-                            
-                            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 prose-analysis text-lg text-slate-600">
-                                {reportData.story.map((paragraph, i) => (
-                                    <p key={i} dangerouslySetInnerHTML={{__html: paragraph.replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-900">$1</strong>')}} />
-                                ))}
-                            </div>
-                        </section>
+                        <h2 className="text-2xl font-bold text-slate-800 mb-2">Solucionador.cl AI</h2>
+                        <p className="text-slate-500 text-sm mb-8">
+                            Para iniciar el análisis inteligente, conecta tu API Key de DeepSeek.
+                        </p>
 
-                        <section>
-                            <div className="flex items-center gap-3 mb-6">
-                                <div className="p-2 bg-emerald-100 text-emerald-700 rounded-lg">
-                                    <Icons.LayoutDashboard />
-                                </div>
-                                <h2 className="text-2xl font-bold text-slate-800">Visualización de Datos</h2>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {reportData.charts.line.length > 0 && (
-                                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 md:col-span-2 fade-in delay-100">
-                                        <h3 className="text-lg font-bold text-slate-700 mb-2">Evolución Temporal</h3>
-                                        <p className="text-sm text-slate-400 mb-6">Tendencia de {reportData.kpis.primaryMetric.label} a lo largo del periodo detectado.</p>
-                                        <div className="h-80 w-full">
-                                            <ResponsiveContainer>
-                                                <AreaChart data={reportData.charts.line}>
-                                                    <defs>
-                                                        <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
-                                                            <stop offset="5%" stopColor="#2563eb" stopOpacity={0.8}/>
-                                                            <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
-                                                        </linearGradient>
-                                                    </defs>
-                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                                    <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickMargin={10} />
-                                                    <YAxis stroke="#94a3b8" fontSize={12} />
-                                                    <Tooltip contentStyle={{borderRadius:'12px', border:'none', boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)'}} />
-                                                    <Area type="monotone" dataKey="value" stroke="#2563eb" fillOpacity={1} fill="url(#colorVal)" strokeWidth={3} />
-                                                </AreaChart>
-                                            </ResponsiveContainer>
-                                        </div>
+                        <div className="text-left space-y-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-blue-500 uppercase mb-1">DeepSeek API Key</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                        <LockIcon className="w-4 h-4" />
                                     </div>
-                                )}
-
-                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 fade-in delay-200">
-                                    <h3 className="text-lg font-bold text-slate-700 mb-2">Top 10: {reportData.kpis.topDimension?.label || 'Categorías'}</h3>
-                                    <p className="text-sm text-slate-400 mb-6">Ranking por volumen de {reportData.kpis.primaryMetric.label}.</p>
-                                    <div className="h-80 w-full">
-                                        <ResponsiveContainer>
-                                            <BarChart data={reportData.charts.bar} layout="vertical" margin={{left: 0}}>
-                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                                                <XAxis type="number" hide />
-                                                <YAxis dataKey="name" type="category" width={140} fontSize={11} stroke="#64748b" />
-                                                <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius:'8px', border:'none', boxShadow:'0 4px 6px -1px rgba(0,0,0,0.1)'}} />
-                                                <Bar dataKey="value" fill="#059669" radius={[0, 4, 4, 0]} barSize={24} />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-
-                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 fade-in delay-300">
-                                    <h3 className="text-lg font-bold text-slate-700 mb-2">Distribución Porcentual</h3>
-                                    <p className="text-sm text-slate-400 mb-6">Participación de mercado de los principales segmentos.</p>
-                                    <div className="h-80 w-full">
-                                        <ResponsiveContainer>
-                                            <PieChart>
-                                                <Pie
-                                                    data={reportData.charts.bar.slice(0,5)}
-                                                    cx="50%" cy="50%"
-                                                    innerRadius={60} outerRadius={80}
-                                                    paddingAngle={5}
-                                                    dataKey="value"
-                                                >
-                                                    {reportData.charts.bar.slice(0,5).map((entry, index) => (
-                                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                                    ))}
-                                                </Pie>
-                                                <Tooltip />
-                                                <Legend layout="vertical" verticalAlign="middle" align="right" wrapperStyle={{fontSize: '11px'}} />
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    </div>
+                                    <input 
+                                        type="password" 
+                                        placeholder="sk-..." 
+                                        className="w-full pl-10 pr-4 py-3 rounded-xl text-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        onKeyDown={(e) => e.key === 'Enter' && handleLogin(e.target.value)}
+                                    />
                                 </div>
                             </div>
-                        </section>
 
-                        <div className="text-center pt-8 border-t border-slate-200">
-                            <p className="text-slate-400 text-sm">Reporte generado automáticamente por 2WIN AI Analyst • {new Date().toLocaleDateString()}</p>
+                            <button 
+                                onClick={() => handleLogin(document.querySelector('input[type="password"]').value)}
+                                className="w-full py-3 rounded-xl text-white font-bold bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all"
+                            >
+                                Conectar y Continuar
+                            </button>
+
+                            <div className="pt-4 border-t border-slate-100 flex justify-between items-center text-xs">
+                                <span className="text-slate-500">¿No tienes una llave?</span>
+                                <a 
+                                    href="https://platform.deepseek.com/api_keys" 
+                                    target="_blank" 
+                                    className="text-blue-500 hover:text-blue-600 flex items-center gap-1 font-medium transition-colors"
+                                >
+                                    Obtener API Key <ExternalLinkIcon className="w-3 h-3" />
+                                </a>
+                            </div>
                         </div>
+                    </div>
+                </div>
+            );
 
-                    </main>
+            if (view === 'UPLOAD') return (
+                <div className="min-h-screen bg-slate-900 text-white flex flex-col">
+                    <header className="h-16 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+                        <div className="flex items-center gap-3">
+                            <div className="p-1.5 bg-blue-600 rounded-lg">
+                                <BrainIcon className="w-5 h-5 text-white" />
+                            </div>
+                            <span className="font-medium text-slate-300">Solucionador.cl / Analyst</span>
+                        </div>
+                        <button onClick={handleLogout} className="text-xs text-slate-500 hover:text-red-400 transition-colors flex items-center gap-2">
+                            <LockIcon className="w-3 h-3" /> Desconectar API
+                        </button>
+                    </header>
+
+                    <div className="flex-1 flex flex-col items-center justify-center p-4">
+                        {status === 'IDLE' && (
+                            <div className="p-12 rounded-3xl text-center max-w-2xl w-full border-dashed border-2 border-slate-700 bg-slate-800/50 hover:border-blue-500/50 transition-all group">
+                                <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-xl shadow-black/20">
+                                    <span className="text-blue-500"><UploadIcon className="w-10 h-10" /></span>
+                                </div>
+                                <h2 className="text-3xl font-bold mb-4 text-white">Sube tu Archivo</h2>
+                                <p className="text-slate-400 mb-8 max-w-md mx-auto">
+                                    Excel (.xlsx) o CSV. DeepSeek analizará la estructura, identificará el contexto y generará el reporte automáticamente.
+                                </p>
+                                <label className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold cursor-pointer inline-flex items-center gap-3 shadow-lg shadow-blue-500/20 transition-all">
+                                    Seleccionar Archivo
+                                    <input type="file" className="hidden" accept=".csv,.xlsx,.xls" onChange={(e) => e.target.files[0] && processFile(e.target.files[0])} />
+                                </label>
+                            </div>
+                        )}
+
+                        {status === 'READING' && (
+                            <div className="text-center">
+                                <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+                                <h3 className="text-xl font-bold animate-pulse">Leyendo datos...</h3>
+                            </div>
+                        )}
+
+                        {status === 'THINKING' && (
+                            <div className="text-center">
+                                <div className="relative w-24 h-24 mx-auto mb-6 pulse-glow rounded-full flex items-center justify-center bg-blue-500/10">
+                                    <div className="text-blue-400"><BrainIcon className="w-12 h-12" /></div>
+                                </div>
+                                <h3 className="text-xl font-bold text-blue-400">DeepSeek está pensando...</h3>
+                                <p className="text-slate-500 mt-2">Analizando patrones y redactando reporte</p>
+                            </div>
+                        )}
+
+                        {status === 'DONE' && (
+                            <div className="w-full max-w-6xl animate-fade-in pb-20">
+                                <div className="p-8 rounded-2xl mb-8 relative overflow-hidden bg-slate-800 border border-slate-700">
+                                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-blue-500 to-purple-500"></div>
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="p-2 bg-blue-500/20 text-blue-400 rounded-lg"><BrainIcon className="w-6 h-6" /></div>
+                                        <h2 className="text-2xl font-bold text-white">{dashboardConfig.title}</h2>
+                                    </div>
+                                    <div className="prose-ai text-slate-300" dangerouslySetInnerHTML={{__html: dashboardConfig.summary}}></div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                    {processedKPIs.map((kpi, idx) => (
+                                        <div key={idx} className="p-6 rounded-2xl border-t-4 border-t-blue-500/50 bg-slate-800 border border-slate-700">
+                                            <p className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">{kpi.label}</p>
+                                            <p className="text-3xl font-bold text-white">
+                                                {kpi.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    {processedCharts.map((chart, idx) => (
+                                        <div key={idx} className={`p-6 rounded-2xl bg-slate-800 border border-slate-700 ${chart.type === 'line' ? 'lg:col-span-2' : ''}`}>
+                                            <div className="flex items-center justify-between mb-6">
+                                                <h3 className="font-bold text-lg text-white">{chart.title}</h3>
+                                                <span className="text-xs bg-slate-900 px-2 py-1 rounded text-slate-400 border border-slate-600 uppercase">{chart.type}</span>
+                                            </div>
+                                            <div className="h-72 w-full">
+                                                <ResponsiveContainer>
+                                                    {chart.type === 'bar' ? (
+                                                        <BarChart data={chart.data} layout="vertical" margin={{left: 0}}>
+                                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#334155" />
+                                                            <XAxis type="number" hide />
+                                                            <YAxis dataKey="name" type="category" width={100} fontSize={11} stroke="#94a3b8" />
+                                                            <Tooltip contentStyle={{backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc'}} />
+                                                            <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
+                                                        </BarChart>
+                                                    ) : chart.type === 'line' ? (
+                                                        <AreaChart data={chart.data}>
+                                                            <defs>
+                                                                <linearGradient id={`grad${idx}`} x1="0" y1="0" x2="0" y2="1">
+                                                                    <stop offset="5%" stopColor={COLORS[idx]} stopOpacity={0.5}/>
+                                                                    <stop offset="95%" stopColor={COLORS[idx]} stopOpacity={0}/>
+                                                                </linearGradient>
+                                                            </defs>
+                                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
+                                                            <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickMargin={10} minTickGap={30} />
+                                                            <YAxis stroke="#94a3b8" fontSize={12} />
+                                                            <Tooltip contentStyle={{backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc'}} />
+                                                            <Area type="monotone" dataKey="value" stroke={COLORS[idx]} fill={`url(#grad${idx})`} strokeWidth={3} />
+                                                        </AreaChart>
+                                                    ) : (
+                                                        <PieChart>
+                                                            <Pie data={chart.data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
+                                                                {chart.data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                                                            </Pie>
+                                                            <Tooltip contentStyle={{backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc'}} />
+                                                            <Legend />
+                                                        </PieChart>
+                                                    )}
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="text-center mt-12">
+                                    <button onClick={() => { setStatus('IDLE'); setRawData([]); }} className="text-slate-400 hover:text-white flex items-center gap-2 mx-auto transition-colors">
+                                        <RefreshIcon className="w-4 h-4" /> Analizar otro archivo
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             );
         }
-
-        const Header = ({ onReset }) => (
-            <div className="bg-slate-900 sticky top-0 z-50 shadow-md">
-                <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <img 
-                            src="https://2win.cl/wp-content/uploads/2025/06/Logo-RGB.png" 
-                            alt="2WIN" 
-                            className="h-10 w-auto object-contain bg-slate-900 rounded" 
-                        />
-                        <div className="h-6 w-px bg-slate-700 hidden md:block"></div>
-                        <span className="text-white font-semibold tracking-tight">Analista Cognitivo</span>
-                    </div>
-                    {onReset && (
-                        <button onClick={onReset} className="text-slate-300 hover:text-white text-sm font-medium flex items-center gap-2 transition-colors">
-                            <Icons.RefreshCw /> Nuevo Análisis
-                        </button>
-                    )}
-                </div>
-            </div>
-        );
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
