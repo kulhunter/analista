@@ -2,19 +2,30 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Dashboard Inteligente desde Documentos</title>
+  <title>Smart Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h1>Dashboard Inteligente</h1>
-<p>Sube un documento. La IA decidirá qué mostrar.</p>
+<main class="container">
+  <header>
+    <h1>Smart Dashboard</h1>
+    <p class="subtitle">
+      Sube un documento. Te mostramos solo lo que importa.
+    </p>
+  </header>
 
-<input type="file" id="fileInput" />
-<button id="process">Generar dashboard</button>
+  <section class="upload">
+    <input type="file" id="fileInput" />
+    <button id="generate" disabled>Generar dashboard</button>
+    <p id="hint">Tus archivos no salen de tu computador.</p>
+  </section>
 
-<div id="status"></div>
-<div id="dashboard"></div>
+  <section id="progress" class="progress hidden"></section>
+
+  <section id="dashboard" class="dashboard"></section>
+</main>
 
 <script type="module" src="app.js"></script>
 </body>
