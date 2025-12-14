@@ -1,76 +1,108 @@
-import { pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1";
-
 const fileInput = document.getElementById("fileInput");
-const generateBtn = document.getElementById("generate");
-const progress = document.getElementById("progress");
-const dashboard = document.getElementById("dashboard");
+const dropzone = document.getElementById("dropzone");
+const status = document.getElementById("status");
+const report = document.getElementById("report");
 
-fileInput.onchange = () => {
-  generateBtn.disabled = !fileInput.files.length;
-};
+dropzone.addEventListener("click", () => fileInput.click());
 
-function showProgress(text) {
-  progress.textContent = text;
-  progress.classList.remove("hidden");
-}
-
-function clearDashboard() {
-  dashboard.innerHTML = "";
-}
-
-function addCard(title, content) {
-  const card = document.createElement("div");
-  card.className = "card";
-  card.innerHTML = `<h3>${title}</h3><p>${content}</p>`;
-  dashboard.appendChild(card);
-}
-
-// Carga controlada del modelo
-showProgress("Preparando inteligencia local…");
-const summarizer = await pipeline(
-  "summarization",
-  "Xenova/distilbart-cnn-12-6"
-);
-progress.classList.add("hidden");
-
-generateBtn.onclick = async () => {
-  clearDashboard();
+fileInput.addEventListener("change", () => {
   const file = fileInput.files[0];
-  if (!file) return;
+  if (file) analyzeFile(file);
+});
 
-  showProgress("Leyendo documento…");
-  const text = await file.text();
-  const sample = text.slice(0, 3500);
+function analyzeFile(file) {
+  report.classList.add("hidden");
+  status.textContent = "Leyendo el archivo…";
 
-  showProgress("Entendiendo el contenido…");
-  const summary = await summarizer(sample);
+  const reader = new FileReader();
 
-  addCard(
-    "Resumen ejecutivo",
-    summary[0].summary_text
-  );
+  reader.onload = () => {
+    const content = reader.result || "";
+    buildReport(file, content);
+  };
 
-  // Lógica humana (no IA por show)
-  if (/\d+%|\$\d+|\d+\s?(meses|años|días)/i.test(text)) {
-    addCard(
-      "Métricas que importan",
-      "El documento contiene números relevantes. No todos merecen seguimiento visual."
-    );
-  }
+  reader.onerror = () => {
+    buildReport(file, "");
+  };
 
-  if (/riesgo|problema|alerta|crítico/i.test(text)) {
-    addCard(
-      "Riesgos y alertas",
-      "Se detectan posibles riesgos. Estos deberían estar visibles antes que cualquier gráfico."
-    );
-  }
+  reader.readAsText(file);
+}
 
-  if (/acción|siguiente|recomienda|debería/i.test(text)) {
-    addCard(
-      "Acciones sugeridas",
-      "El texto propone pasos concretos. Un buen dashboard los prioriza."
-    );
-  }
+function buildReport(file, content) {
+  status.textContent = "Construyendo informe…";
 
-  progress.classList.add("hidden");
-};
+  const textLength = content.length;
+  const hasText = textLength > 50;
+
+  const confidence =
+    textLength > 2000 ? "Alta" :
+    textLength > 500 ? "Media" :
+    "Baja";
+
+  report.innerHTML = `
+    <div class="section">
+      <h2>1. Identificación del documento</h2>
+      <p><strong>Archivo:</strong> ${file.name}</p>
+      <p><strong>Formato:</strong> ${file.type || "Desconocido"}</p>
+      <p><strong>Tamaño:</strong> ${(file.size / 1024).toFixed(1)} KB</p>
+    </div>
+
+    <div class="section">
+      <h2>2. Diagnóstico inicial</h2>
+      <p>
+        ${
+          hasText
+            ? "El archivo contiene texto suficiente para realizar un análisis preliminar."
+            : "El archivo contiene poco o ningún texto legible."
+        }
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>3. Resumen ejecutivo</h2>
+      <p>
+        ${
+          hasText
+            ? "Este documento parece contener información que puede ser utilizada como insumo informativo."
+            : "No es posible generar un resumen debido a la falta de contenido textual."
+        }
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>4. Limitaciones del análisis</h2>
+      <p>
+        El análisis se basa únicamente en el contenido disponible en el archivo.
+        No se realizan inferencias externas ni se completan vacíos de información.
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>5. Nivel de confiabilidad</h2>
+      <p><strong>${confidence}</strong></p>
+      <p>
+        ${
+          confidence === "Alta"
+            ? "El documento presenta suficiente contenido para conclusiones preliminares."
+            : confidence === "Media"
+            ? "El contenido permite observaciones generales, pero no conclusiones sólidas."
+            : "El contenido es insuficiente para conclusiones confiables."
+        }
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>6. Decisiones posibles</h2>
+      <p>
+        ${
+          hasText
+            ? "Puede utilizarse este documento como base inicial, pero se recomienda validación adicional."
+            : "No se recomienda tomar decisiones basadas en este documento."
+        }
+      </p>
+    </div>
+  `;
+
+  status.textContent = "Informe generado.";
+  report.classList.remove("hidden");
+}
