@@ -2,31 +2,29 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Smart Dashboard Solucionador.cl</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css">
+  <title>Universal Analyzer</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-<main class="container">
-  <header>
-    <h1>Smart Dashboard</h1>
+  <main class="container">
+
+    <h1>Universal Analyzer</h1>
     <p class="subtitle">
-      Sube un documento. Te mostramos solo lo que importa.
+      Sube cualquier archivo. Obtén un informe analítico claro y honesto.
     </p>
-  </header>
 
-  <section class="upload">
-    <input type="file" id="fileInput" />
-    <button id="generate" disabled>Generar dashboard</button>
-    <p id="hint">Tus archivos no salen de tu computador.</p>
-  </section>
+    <div id="dropzone">
+      <input type="file" id="fileInput" />
+      <p>Arrastra un archivo aquí o haz clic para subirlo</p>
+    </div>
 
-  <section id="progress" class="progress hidden"></section>
+    <div id="status"></div>
 
-  <section id="dashboard" class="dashboard"></section>
-</main>
+    <section id="report" class="hidden"></section>
 
-<script type="module" src="app.js"></script>
+  </main>
+
+  <script src="app.js"></script>
 </body>
 </html>
