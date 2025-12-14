@@ -1,88 +1,76 @@
 import { pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1";
 
 const fileInput = document.getElementById("fileInput");
-const processBtn = document.getElementById("process");
-const status = document.getElementById("status");
+const generateBtn = document.getElementById("generate");
+const progress = document.getElementById("progress");
 const dashboard = document.getElementById("dashboard");
 
-// Modelos
-const classifier = await pipeline(
-  "text-classification",
-  "Xenova/bart-large-mnli"
-);
+fileInput.onchange = () => {
+  generateBtn.disabled = !fileInput.files.length;
+};
 
+function showProgress(text) {
+  progress.textContent = text;
+  progress.classList.remove("hidden");
+}
+
+function clearDashboard() {
+  dashboard.innerHTML = "";
+}
+
+function addCard(title, content) {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `<h3>${title}</h3><p>${content}</p>`;
+  dashboard.appendChild(card);
+}
+
+// Carga controlada del modelo
+showProgress("Preparando inteligencia local…");
 const summarizer = await pipeline(
   "summarization",
   "Xenova/distilbart-cnn-12-6"
 );
+progress.classList.add("hidden");
 
-// Utilidad
-function addCard(title, content) {
-  const div = document.createElement("div");
-  div.className = "card";
-  div.innerHTML = `<h3>${title}</h3><p>${content}</p>`;
-  dashboard.appendChild(div);
-}
-
-processBtn.onclick = async () => {
-  dashboard.innerHTML = "";
+generateBtn.onclick = async () => {
+  clearDashboard();
   const file = fileInput.files[0];
   if (!file) return;
 
-  status.textContent = "Leyendo documento...";
+  showProgress("Leyendo documento…");
   const text = await file.text();
-  const sample = text.slice(0, 3000);
+  const sample = text.slice(0, 3500);
 
-  status.textContent = "Entendiendo el tipo de documento...";
-
-  const labels = [
-    "reporte",
-    "plan estratégico",
-    "propuesta",
-    "documento operativo",
-    "análisis",
-    "otro"
-  ];
-
-  const classification = await classifier(sample, labels);
-  const docType = classification.labels[0];
-
-  addCard("Tipo de documento detectado", docType);
-
-  status.textContent = "Extrayendo información útil...";
-
-  // Resumen ejecutivo (siempre útil)
+  showProgress("Entendiendo el contenido…");
   const summary = await summarizer(sample);
-  addCard("Resumen ejecutivo", summary[0].summary_text);
 
-  // Heurísticas según tipo
-  if (docType.includes("reporte") || docType.includes("análisis")) {
+  addCard(
+    "Resumen ejecutivo",
+    summary[0].summary_text
+  );
+
+  // Lógica humana (no IA por show)
+  if (/\d+%|\$\d+|\d+\s?(meses|años|días)/i.test(text)) {
     addCard(
-      "¿Qué mirar primero?",
-      "Este documento parece orientado a resultados. Revisa métricas, conclusiones y desviaciones."
+      "Métricas que importan",
+      "El documento contiene números relevantes. No todos merecen seguimiento visual."
     );
   }
 
-  if (text.match(/\d+%|\$\d+|\d+\s?(meses|años|días)/i)) {
+  if (/riesgo|problema|alerta|crítico/i.test(text)) {
     addCard(
-      "Indicadores detectados",
-      "Se identifican números relevantes. Un dashboard real debería enfocarse solo en los que impactan decisiones."
+      "Riesgos y alertas",
+      "Se detectan posibles riesgos. Estos deberían estar visibles antes que cualquier gráfico."
     );
   }
 
-  if (text.match(/riesgo|problema|dificultad|alerta/i)) {
+  if (/acción|siguiente|recomienda|debería/i.test(text)) {
     addCard(
-      "Riesgos / alertas",
-      "El documento menciona posibles riesgos. Estos merecen seguimiento visual antes que gráficos generales."
+      "Acciones sugeridas",
+      "El texto propone pasos concretos. Un buen dashboard los prioriza."
     );
   }
 
-  if (text.match(/recomienda|siguiente paso|acción/i)) {
-    addCard(
-      "Próximos pasos",
-      "El documento contiene acciones sugeridas. Un buen dashboard las prioriza y no las esconde."
-    );
-  }
-
-  status.textContent = "Dashboard generado.";
+  progress.classList.add("hidden");
 };
